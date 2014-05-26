@@ -5,10 +5,6 @@ ENDIF()
 PROJECT("boost_simp_test")
 Message("Project Boost_simp_test")
 
-IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-set(CMAKE_CXX_FLAGS "-Wall -std=c++11 ")
-ENDIF()
-
 SET(FILT_SRCS  
 butterworth_iir.cpp
 iir_coeff.cpp
@@ -24,30 +20,29 @@ IF(Boost_FOUND)
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
    # Mac OS X specific code
    SET(OperatingSystem "Mac OS X")
-   SET(Boost_USE_STATIC_LIBS ON)
+   SET(Boost_USE_STATIC_LIBS OFF)
    SET(Boost_USE_MULTITHREADED ON)
 ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
  SET(Boost_USE_STATIC_RUNTIME OFF)
  FIND_PACKAGE(Boost COMPONENTS python)
- FIND_PACKAGE(PythonLibs REQUIRED)
+ FIND_PACKAGE(PythonLibs 2 REQUIRED)
  INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" ${PYTHON_INCLUDE_DIRS} "/usr/include")
  LINK_DIRECTORIES(${PYTHON_LIBRARY_DIRS} ${Boost_LIBRARY_DIRS})
  
- EXECUTE_PROCESS( COMMAND python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+ EXECUTE_PROCESS( COMMAND python2.7 -c "from distutils.sysconfig import get_python_lib; print get_python_lib()" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
  
  ADD_DEFINITIONS(-DSPUCBOOST)
- INCLUDE_DIRECTORIES("/usr/include/" ".")
+ INCLUDE_DIRECTORIES(".")
  ADD_LIBRARY(filt STATIC ${FILT_SRCS})
  INSTALL(TARGETS filt DESTINATION ${PYTHON_SITE_PACKAGES}/pytemp)
  # not working
   
  FOREACH(mod ${EXTS})
    FILE(APPEND test_imports "import pytemp.${mod}\n")
-   SET(SRC py_${mod}.cpp)
-   ADD_LIBRARY(${mod} SHARED ${SRC})
-   TARGET_LINK_LIBRARIES(${mod} filt ${PYTHON_LIBRARIES} ${Boost_LIBRARIES} )
-   SET_TARGET_PROPERTIES(${mod} PROPERTIES PREFIX "")
+   PYTHON_ADD_MODULE(${mod} SHARED py_${mod}.cpp)
+   TARGET_LINK_LIBRARIES(${mod} filt ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} )
+   SET_TARGET_PROPERTIES(${mod} PROPERTIES SUFFIX ".so")
    #SET(LIBRARY_OUTPUT_PATH "../../spuc_linux_build")
    SET(LIBRARY_OUTPUT_PATH ${PYTHON_SITE_PACKAGES}/pytemp)
  ENDFOREACH(mod ${EXTS})
