@@ -1,0 +1,64 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE "DEBUG")
+ENDIF()
+PROJECT("boost_simp_test")
+Message("Project Boost_simp_test")
+
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+set(CMAKE_CXX_FLAGS "-Wall -std=c++11 ")
+ENDIF()
+
+SET(FILT_SRCS  
+butterworth_iir.cpp
+iir_coeff.cpp
+)
+
+SET(EXTS 
+butterworth_iir
+iir_coeff
+)
+
+FIND_PACKAGE(Boost)
+IF(Boost_FOUND)
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+   # Mac OS X specific code
+   SET(OperatingSystem "Mac OS X")
+   SET(Boost_USE_STATIC_LIBS ON)
+   SET(Boost_USE_MULTITHREADED ON)
+ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
+
+ SET(Boost_USE_STATIC_RUNTIME OFF)
+ FIND_PACKAGE(Boost COMPONENTS python)
+ FIND_PACKAGE(PythonLibs REQUIRED)
+ INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" ${PYTHON_INCLUDE_DIRS} "/usr/include")
+ LINK_DIRECTORIES(${PYTHON_LIBRARY_DIRS} ${Boost_LIBRARY_DIRS})
+ 
+ EXECUTE_PROCESS( COMMAND python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+ 
+ ADD_DEFINITIONS(-DSPUCBOOST)
+ INCLUDE_DIRECTORIES("/usr/include/" ".")
+ ADD_LIBRARY(filt STATIC ${FILT_SRCS})
+ INSTALL(TARGETS filt DESTINATION ${PYTHON_SITE_PACKAGES}/pytemp)
+ # not working
+  
+ FOREACH(mod ${EXTS})
+   FILE(APPEND test_imports "import pytemp.${mod}\n")
+   SET(SRC py_${mod}.cpp)
+   ADD_LIBRARY(${mod} SHARED ${SRC})
+   TARGET_LINK_LIBRARIES(${mod} filt ${PYTHON_LIBRARIES} ${Boost_LIBRARIES} )
+   SET_TARGET_PROPERTIES(${mod} PROPERTIES PREFIX "")
+   #SET(LIBRARY_OUTPUT_PATH "../../spuc_linux_build")
+   SET(LIBRARY_OUTPUT_PATH ${PYTHON_SITE_PACKAGES}/pytemp)
+ ENDFOREACH(mod ${EXTS})
+
+ELSEIF(NOT Boost_FOUND)
+  MESSAGE(FATAL_ERROR "Unable to find correct Boost version. Did you set BOOST_ROOT?")
+ENDIF()
+
+
+#ADD_CUSTOM_TARGET(CP_INIT)
+ADD_CUSTOM_COMMAND(TARGET filt POST_BUILD
+COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/__init__.py  ${PYTHON_SITE_PACKAGES}/pytemp)
+
+ADD_DEFINITIONS("-Wall -fPIC -DSPUCBOOST")
